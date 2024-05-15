@@ -49,7 +49,7 @@ python GNN4CIRCUITS.py parse -ver <path-to-verilog-file> -hw <hardware-type> [-l
 
 #### Example
 ```bash
-python GNN4CIRCUITS.py parse -ver /path/to/verilog/file.v -hw GL -lib /path/to/library.lib -id -od -iod -mdi -mdo -pi -po -gt
+python GNN4CIRCUITS.py parse -ver /path/to/verilog/file.v -hw GL -lib /path/to/library.v -id -od -iod -mdi -mdo -pi -po -gt
 ```
 
 ### Use Case 2: Graph Classification
@@ -61,6 +61,11 @@ To train and evaluate GNN models, use the graph command with the appropriate opt
 
 ```bash
 python GNN4CIRCUITS.py graph -model <model-type> -hdim <hidden-dimensions> -train <node-features-file> <edges-file> <properties-file> [-test <node-features-file> <edges-file> <properties-file>] [-val <node-features-file> <edges-file> <properties-file>]
+```
+
+#### Example
+```bash
+python GNN4CIRCUITS.py graph -model GCN -hdim GL -train node_features.csv graph_edges.csv graph_properties.csv
 ```
 
 ### Arguments 
