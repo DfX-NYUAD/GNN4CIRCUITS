@@ -1,11 +1,14 @@
 # GNN4CIRCUITS
 
-GNN4CIRCUITS is a platform designed for applying Graph Neural Networks (GNNs) to circuit analysis and design. This repository includes the necessary files and instructions to set up and use the platform.
+GNN4CIRCUITS is a platform for applying Graph Neural Networks (GNNs) to circuit analysis and design. This repository supports graph conversion from hardware description files and the training of GNN models for both **node-level** and **graph-level** classification.
 
 ## Table of Contents
 
 - [Installation](#installation)
 - [Usage](#usage)
+  - [Graph Conversion](#graph-conversion)
+  - [Graph Classification](#graph-classification)
+- [Command-Line Arguments](#command-line-arguments)
 
 ## Installation
 
@@ -18,75 +21,151 @@ GNN4CIRCUITS is a platform designed for applying Graph Neural Networks (GNNs) to
 
 1. **Clone the repository:**
 
-    ```bash
-    git clone https://github.com/hanasel/GNN4CIRCUITS.git
-    cd GNN4CIRCUITS
-    ```
+   ```bash
+   git clone https://github.com/hanasel/GNN4CIRCUITS.git
+   cd GNN4CIRCUITS
+   ```
 
 2. **Create the conda environment:**
 
-    ```bash
-    conda env create -f gnn4circuits.yml
-    ```
+   ```bash
+   conda env create -f gnn4circuits.yml
+   ```
 
 3. **Activate the environment:**
 
-    ```bash
-    conda activate gnn4circuits
-    ```
+   ```bash
+   conda activate gnn4circuits
+   ```
 
 ## Usage
 
-### Use Case 1: Converting a hardware design into a graph
+### Graph Conversion
 
-In this case, we demonstrate the usage of GNN4CIRCUITS to convert hardware design files into graphs and dump into files which can be read by GNN4CIRUITS to train models. The platform is very customizable, offering the input of a technology library so as to accept more formats of files, as well as offering the ability to create large feature vectors for the nodes of the graph which will help in the training process.
-
-To parse and analyze Verilog files, use the `parse` command with the appropriate options:
+Convert Verilog, Bench, or RTL files into graph format:
 
 ```bash
-python GNN4CIRCUITS.py parse -ver <path-to-verilog-file> -hw <hardware-type> [-lib <path-to-library>] [optional-parameters]
+python GNN4CIRCUITS.py parse -ver <path-to-verilog> -hw <GL|RTL|BENCH> -class graph -lib <optional-lib-path> [feature flags]
 ```
+
+#### Example:
+
+```bash
+python GNN4CIRCUITS.py parse -ver designs/ -hw GL -class graph -lib lib.v -id -od -gt -pi -po
+```
+
+This generates a directory called `files4training` containing:
+- `node_features.csv`
+- `graph_edges.csv`
+- `graph_properties.csv`
+
+### Graph Classification
+
+Once graph files are generated, train a GNN model on the dataset:
+
+```bash
+python GNN4CIRCUITS.py train -class graph -model <model> -hdim <hidden-dimension> -n_layers <number-of-layers> -epochs <number-of-epochs> -input <input-path>
+```
+
+Optional arguments can be used to provide validation or test sets separately using `-val` and `-test`.
+
+#### Example:
+
+```bash
+python GNN4CIRCUITS.py train -class graph -model GIN -hdim 128 -n_layers 3 -epochs 200 -input files4training
+```
+
+## Command-Line Arguments
+
+### `parse` Command
+- `-ver`: Path to the Verilog or directory of files.
+- `-hw`: Hardware type (`GL`, `RTL`, `BENCH`, `TXT`).
+- `-class`: Classification type (`graph` or `node`).
+- `-lib`: Optional library file for gate-level parsing.
+- Optional Feature Flags:
+  - `-id`: Input degree
+  - `-od`: Output degree
+  - `-iod`: I/O degree
+  - `-mdi`: Min. dist. to input
+  - `-mdo`: Min. dist. to output
+  - `-pi`, `-po`: Primary I/O flags
+  - `-gt`: Gate type
+
+### `train` Command
+- `-class`: `graph` or `node`
+- `-model`: `GCN`, `GIN`, or `PNA`
+- `-hdim`: Hidden dimension size
+- `-n_layers`: Number of GNN layers
+- `-epochs`: Training epochs
+- `-batch_size`: Batch size
+- `-input`: Path to directory with `node_features.csv`, `graph_edges.csv`, and `graph_properties.csv`
+- `-val`, `-test`: Optional paths for validation and test sets
+- `-output`: Output results log file (default: `gnn4circuits_results.txt`)
+
+### Parsing Graphs from Matrix Format (`parse_txt`)
+
+This use case allows users to load and process hardware design graphs represented in coordinate list (COO) format, typically extracted from sparse matrices. It is useful for datasets where graph structures and features are pre-encoded in `.txt` format.
+
+To run this parsing pipeline, use the `parse_txt` command:
+
+```bash
+python GNN4CIRCUITS.py parse_txt -path /path/to/folder/
+```
+
+This folder must contain the following files:
+
+- **`row.txt`**: A list of source node indices for edges.
+- **`col.txt`**: A list of destination node indices for edges.
+- **`cell.txt`**: Optional. Contains metadata or circuit cell names corresponding to each node.
+- **`feat.txt`**: A tab-separated file where each row corresponds to a node's feature vector. All vectors must be of the same length.
+- **`label.txt`**: A list of integer class labels, one per node.
+
+Ensure consistency:
+- The number of rows in `feat.txt`, `label.txt`, and `cell.txt` (if present) must match the total number of unique nodes.
+- `row.txt` and `col.txt` must have the same number of entries, each pair representing one edge.
 
 #### Example
-```bash
-python GNN4CIRCUITS.py parse -ver /path/to/verilog/file.v -hw GL -lib /path/to/library.v -id -od -iod -mdi -mdo -pi -po -gt
+
+Suppose you have the following files in `/data/parsed_graph`:
+
+```
+/data/parsed_graph/
+├── row.txt       # e.g., 0, 0, 1, ...
+├── col.txt       # e.g., 1, 2, 2, ...
+├── cell.txt      # e.g., NAND2, INV, ...
+├── feat.txt      # e.g., 0.1\t0.2\t0.3 ...
+├── label.txt     # e.g., 0, 1, 2, ...
 ```
 
-### Use Case 2: Graph Classification
-
-In this case, we demonstrate the usage of GNN4CIRCUITS for graph classification. After the dataset has been prepared by Use Case 1, the dumped files must be provided by the user for training. The training process is very customizable, offering 3 types of models: GCN, GIN and PNA, as well as allowing the user to determine the hidden dimensions number. Furthermore, it is only necessary for the user to provide a training dataset, in which case there is a default split of 70% training, 10% validation and 20% testing of the dataset. Optionally, the user could provide separate testing and/or validation datasets which must be of the same format and have been generated by GNN4CIRCUITS.
-The dataset contains a node features file, a graph edges file and a graph properties file.
-
-To train and evaluate GNN models, use the graph command with the appropriate options:
+You can parse them with:
 
 ```bash
-python GNN4CIRCUITS.py graph -model <model-type> -hdim <hidden-dimensions> -train <node-features-file> <edges-file> <properties-file> [-test <node-features-file> <edges-file> <properties-file>] [-val <node-features-file> <edges-file> <properties-file>]
+python GNN4CIRCUITS.py parse_txt -path /data/parsed_graph
 ```
 
-#### Example
-```bash
-python GNN4CIRCUITS.py graph -model GCN -hdim GL -train node_features.csv graph_edges.csv graph_properties.csv
+This will generate a graph object compatible with GNN training pipelines using DGL, with features and labels attached to each node.
+
+### `cell.txt` Format
+
+The `cell.txt` file provides metadata mapping each node index to its corresponding circuit cell instance and source file. This is useful for:
+
+- Traceability: Knowing where a cell originated from in the Verilog design.
+- Debugging: Mapping graph nodes back to specific hardware components.
+
+#### Format:
+Each line in `cell.txt` must follow the format:
+
+```
+<node_id> <cell_name> from file <source_filename>
 ```
 
-### Arguments 
-#### Parse Command Options
+For example:
 
-* `-ver`, `--verilog`: Path to Verilog file.
-* `-hw`, `--hardware`: Hardware type (`GL` for gate-level, `RTL` for register-transfer level).
-* `-lib`, `--library`: Path to library (required for GL hardware type).
-* `-id`, `--input_degree`: Include input degree feature.
-* `-od`, `--output_degree`: Include output degree feature.
-* `-iod`, `--io_degree`: Include I/O degree feature.
-* `-mdi`, `--min_dist_input`: Include minimum distance to input feature.
-* `-mdo`, `--min_dist_output`: Include minimum distance to output feature.
-* `-pi`, `--primary_input`: Include primary input feature.
-* `-po`, `--primary_output`: Include primary output feature.
-* `-ki`, `--key_string`: Key string for security features.
-* `-gt`, `--gate_type`: Include gate type feature (only applicable if hardware is GL).
+```
+1841 \multiplier_1/U57 from file Test_add_mul_16_bit_syn.v
+1456 \multiplier_1/U442 from file Test_add_mul_16_bit_syn.v
+```
 
-#### Graph Command Options 
-* `-model`: Model type (default: GCN).
-* `-hdim`: Hidden dimensions.
-* `-train`: Files for training: node features, edges, and properties.
-* `-test`: Files for testing: node features, edges, and properties.
-* `-val`: Files for validation: node features, edges, and properties.
+**Notes:**
+- Node IDs should correspond to those used in `feat.txt`, `label.txt`, and the indices in `row.txt` / `col.txt`.
+- Escape backslashes (`\\`) are common due to Verilog naming conventions and are handled properly during parsing.
