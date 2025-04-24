@@ -965,7 +965,7 @@ class NodeClassificationDataset(DGLDataset):
         return self.degs, self.deg_counts
 
 
-class FlexibleGCN(nn.Module):
+class GCN(nn.Module):
     def __init__(self, in_feats, h_feats, num_classes, n_layers, mode="node"):
         """
         n_layers: total number of GraphConv layers.
@@ -974,7 +974,7 @@ class FlexibleGCN(nn.Module):
                   intermediate layers (if any): h_feats -> h_feats,
                   final layer: h_feats -> num_classes.
         """
-        super(FlexibleGCN, self).__init__()
+        super(GCN, self).__init__()
         self.mode = mode  # 'graph' or 'node'
         self.layers = nn.ModuleList()
         if n_layers == 1:
@@ -1014,9 +1014,9 @@ class MLP(nn.Module):
         x = self.batch_norm2(self.linear2(x))
         return x
 
-class FlexibleGIN(nn.Module):
+class GIN(nn.Module):
     def __init__(self, in_feats, h_feats, num_classes, n_layers, mode="node"):
-        super(FlexibleGIN, self).__init__()
+        super(GIN, self).__init__()
         self.mode = mode  # 'graph' or 'node'
         self.layers = nn.ModuleList()
         if n_layers == 1:
@@ -1047,9 +1047,9 @@ class FlexibleGIN(nn.Module):
             return h  # node-level logits
 
 
-class FlexiblePNA(nn.Module):
+class PNA(nn.Module):
     def __init__(self, in_dim, hidden_dim, n_classes, aggregators, scalers, delta, n_layers, mode="node"):
-        super(FlexiblePNA, self).__init__()
+        super(PNA, self).__init__()
         self.mode = mode  # "graph" or "node"
         self.layers = nn.ModuleList()
         if n_layers == 1:
@@ -1335,17 +1335,17 @@ def handle_training(args):
         val_dataloader = GraphDataLoader(val_dataset, batch_size=args.batch, shuffle=False)
 
         if args.model == "GCN":
-            model = FlexibleGCN(train_dataset.dim_nfeats, args.hdim, train_dataset.gclasses,
+            model = GCN(train_dataset.dim_nfeats, args.hdim, train_dataset.gclasses,
                                 args.n_layers, mode="graph")
         elif args.model == "GIN":
-            model = FlexibleGIN(train_dataset.dim_nfeats, args.hdim, train_dataset.gclasses,
+            model = GIN(train_dataset.dim_nfeats, args.hdim, train_dataset.gclasses,
                                 args.n_layers, mode="graph")
         elif args.model == "PNA":
             degs, _ = train_dataset.calculate_degs()
             delta = degs.float().log().mean().item()
             aggregators = ['mean', 'max', 'min', 'std']
             scalers = ['identity', 'amplification', 'attenuation']
-            model = FlexiblePNA(train_dataset.dim_nfeats, args.hdim, train_dataset.gclasses,
+            model = PNA(train_dataset.dim_nfeats, args.hdim, train_dataset.gclasses,
                                 aggregators, scalers, delta, args.n_layers, mode="graph")
         else:
             raise ValueError(f"Unsupported model type: {args.model}")
