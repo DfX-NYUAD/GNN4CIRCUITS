@@ -7,8 +7,8 @@ GNN4CIRCUITS is a platform for applying Graph Neural Networks (GNNs) to circuit 
 - [Overview](#overview)
 - [Installation](#installation)
 - [Usage](#usage)
-  - [Graph Conversion](#graph-conversion)
-  - [Graph Classification](#graph-classification)
+  - [Convert a netlist to graph format](#graph-conversion)
+  - [Training and evaluation](#graph-classification)
 - [Command-Line Arguments](#command-line-arguments)
 
 ## Overview
