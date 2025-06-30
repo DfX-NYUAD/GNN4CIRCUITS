@@ -1,7 +1,33 @@
-## Security Experiment
+## Security Training
 
-To reproduce the work as in the GNN4IC paper, under section 5.2, you can run the following command:
+This use-case reproduces the node-level classification experiments described in Section 5.2 of the [GNN4IC paper](https://arxiv.org/abs/2201.06848), focused on hardware reverse engineering.
 
-```python GNN4CIRCUITS.py train -class node -hdim 256 -n_layers 5 -epochs 2000 -input examples/security```
+The training pipeline uses graph representations of gate-level netlists with anonymized node and module names. Each graph corresponds to an integrated circuit (IC) design, and the goal is to classify the type of gate or recover functional properties from the structure alone — a task relevant to reverse engineering and de-obfuscation.
 
-This dataset has been taken from [Alrahis et al.](https://ieeexplore.ieee.org/document/9530566), and the original can be downloaded [here](https://github.com/DfX-NYUAD/GNN-RE?tab=readme-ov-file#Citation-&-Acknowledgement). The dataset in this repository has been adapted from the original to fit the input requirements of GNN4CIRCUITS and can be found under Experiments/security/.
+The dataset used in this experiment is adapted from [Alrahis et al. (2021)](https://ieeexplore.ieee.org/document/9530566), originally released as part of the [GNN-RE project](https://github.com/DfX-NYUAD/GNN-RE). The version in this repository under `Experiments/security/` has been preprocessed to fit the input requirements of GNN4CIRCUITS.
+
+#### Example:
+
+```bash
+python GNN4CIRCUITS.py train -class node -hdim 256 -n_layers 5 -epochs 2000 -input Experiments/security
+```
+This command trains a GNN model on node-level reverse engineering tasks using the security dataset.
+
+#### Input
+
+The input directory (e.g., examples/security/) must contain:
+
+- node_features.csv: Numerical features for each node
+
+- graph_edges.csv: Edge list describing graph structure
+
+- graph_properties.csv: Graph-level properties such as graph IDs and labels
+
+#### Output
+The training script will:
+
+- Train a GNN model (e.g., GCN, GIN, or PNA) on the selected dataset
+
+- Log training and validation accuracy/loss
+
+- Save performance metrics and model checkpoints if specified in the script
