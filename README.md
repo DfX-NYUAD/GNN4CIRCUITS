@@ -4,11 +4,25 @@ GNN4CIRCUITS is a platform for applying Graph Neural Networks (GNNs) to circuit 
 
 ## Table of Contents
 
+- [Overview](#overview)
 - [Installation](#installation)
 - [Usage](#usage)
   - [Graph Conversion](#graph-conversion)
   - [Graph Classification](#graph-classification)
 - [Command-Line Arguments](#command-line-arguments)
+
+## Overview
+
+Modern ICs can be represented as graphs, with gates as nodes and wires as edges. GNN4CIRCUITS leverages this structure to provide:
+
+- Circuit-to-graph conversion 
+- Node and graph-level machine learning tasks
+- Multiple GNN model support (GCN, GIN and PNA)
+- Compatibility with real-world and synthetic benchmarks
+
+<p align="center">
+  <img src="img/gnn4circuits_pipeline.png" alt="Pipeline" width="600"/>
+</p>
 
 ## Installation
 
@@ -40,7 +54,7 @@ GNN4CIRCUITS is a platform for applying Graph Neural Networks (GNNs) to circuit 
 
 ## Usage
 
-### Graph Conversion
+### Convert a netlist to graph format
 
 Convert Verilog, Bench, or RTL files into graph format:
 
@@ -59,7 +73,7 @@ This generates a directory called `files4training` containing:
 - `graph_edges.csv`
 - `graph_properties.csv`
 
-### Graph Classification
+### Training and evaluation
 
 Once graph files are generated, train a GNN model on the dataset:
 
@@ -77,7 +91,8 @@ python GNN4CIRCUITS.py train -class graph -model GIN -hdim 128 -n_layers 3 -epoc
 
 ## Command-Line Arguments
 
-### `parse` Command
+### `parse` Command 
+Used for netlist to graph conversion
 - `-ver`: Path to the Verilog or directory of files.
 - `-hw`: Hardware type (`GL`, `RTL`, `BENCH`, `TXT`).
 - `-class`: Classification type (`graph` or `node`).
@@ -92,6 +107,7 @@ python GNN4CIRCUITS.py train -class graph -model GIN -hdim 128 -n_layers 3 -epoc
   - `-gt`: Gate type
 
 ### `train` Command
+Used for training and evaluation
 - `-class`: `graph` or `node`
 - `-model`: `GCN`, `GIN`, or `PNA`
 - `-hdim`: Hidden dimension size
@@ -168,4 +184,3 @@ For example:
 
 **Notes:**
 - Node IDs should correspond to those used in `feat.txt`, `label.txt`, and the indices in `row.txt` / `col.txt`.
-- Escape backslashes (`\\`) are common due to Verilog naming conventions and are handled properly during parsing.
