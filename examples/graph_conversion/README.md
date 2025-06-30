@@ -4,7 +4,7 @@ This use-case converts gate-level netlist designs into graph representations, wh
 
 The graph conversion pipeline parses standard digital hardware designs and outputs graph structures with metadata including gate types, primary inputs/outputs, and hierarchical connections.
 
-The input Verilog files used in this use case come from open-source benchmark suites:
+The input Verilog files used in this use-case come from open-source benchmark suites:
 - [ISCAS-85](https://ddd.fit.cvut.cz/www/prj/Benchmarks/ISCAS85/)
 - [ITC-99](https://github.com/ccsl-uaegean/ITC99-RTL-Verilog)
 
