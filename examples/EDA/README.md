@@ -2,7 +2,7 @@
 
 To reproduce the work as in the GNN4IC paper, under section 5.2, you can run the following command:
 
-```python GNN4CIRCUITS.py train -class node -hdim 300 -n_layers 5 -input Experiments/EDA/dfg```
+```python GNN4CIRCUITS.py train -class node -hdim 300 -n_layers 5 -input examples/EDA/dfg```
 
 replace "dfg" with "cdfg" and "realcase" to test the rest of the dataset.
 
