@@ -4,12 +4,12 @@ This use-case reproduces the node-level classification experiments described in 
 
 The training pipeline uses graph representations of gate-level netlists with anonymized node and module names. Each graph corresponds to an integrated circuit (IC) design, and the goal is to classify the type of gate or recover functional properties from the structure alone — a task relevant to reverse engineering and de-obfuscation.
 
-The dataset used in this experiment is adapted from [Alrahis et al. (2021)](https://ieeexplore.ieee.org/document/9530566), originally released as part of the [GNN-RE project](https://github.com/DfX-NYUAD/GNN-RE). The version in this repository under `Experiments/security/` has been preprocessed to fit the input requirements of GNN4CIRCUITS.
+The dataset used in this experiment is adapted from [Alrahis et al. (2021)](https://ieeexplore.ieee.org/document/9530566), originally released as part of the [GNN-RE project](https://github.com/DfX-NYUAD/GNN-RE). The version in this repository under `examples/security/` has been preprocessed to fit the input requirements of GNN4CIRCUITS.
 
 #### Example:
 
 ```bash
-python GNN4CIRCUITS.py train -class node -hdim 256 -n_layers 5 -epochs 2000 -input Experiments/security
+python GNN4CIRCUITS.py train -class node -hdim 256 -n_layers 5 -epochs 2000 -input examples/security
 ```
 This command trains a GNN model on node-level reverse engineering tasks using the security dataset.
 
