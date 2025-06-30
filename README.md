@@ -21,7 +21,7 @@ Modern ICs can be represented as graphs, with gates as nodes and wires as edges.
 - Compatibility with real-world and synthetic benchmarks
 
 <p align="center">
-  <img src="img/gnn4circuits_pipeline.png" alt="Pipeline" width="600"/>
+  <img src="img/gnn4circuits_pipeline.png" alt="Pipeline"/>
 </p>
 
 ## Installation
