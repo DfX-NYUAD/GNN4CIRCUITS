@@ -132,7 +132,7 @@ This folder must contain the following files:
 
 - **`row.txt`**: A list of source node indices for edges.
 - **`col.txt`**: A list of destination node indices for edges.
-- **`cell.txt`**: Optional. Contains metadata or circuit cell names corresponding to each node.
+- **`cell.txt`**: Contains metadata or circuit cell names corresponding to each node.
 - **`feat.txt`**: A tab-separated file where each row corresponds to a node's feature vector. All vectors must be of the same length.
 - **`label.txt`**: A list of integer class labels, one per node.
 
@@ -148,8 +148,8 @@ Suppose you have the following files in `/data/parsed_graph`:
 /data/parsed_graph/
 ├── row.txt       # e.g., 0, 0, 1, ...
 ├── col.txt       # e.g., 1, 2, 2, ...
-├── cell.txt      # e.g., NAND2, INV, ...
-├── feat.txt      # e.g., 0.1\t0.2\t0.3 ...
+├── cell.txt     
+├── feat.txt      # e.g., 0.1  0.2  0.3 ...
 ├── label.txt     # e.g., 0, 1, 2, ...
 ```
 
