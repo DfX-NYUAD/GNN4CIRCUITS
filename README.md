@@ -161,6 +161,10 @@ python GNN4CIRCUITS.py parse_txt -path /data/parsed_graph
 
 This will generate a graph object compatible with GNN training pipelines using DGL, with features and labels attached to each node.
 
+#### Dataset
+
+An example dataset can be found [here](examples/matrix_format/). This is extracted data taken from [Alrahis et al.](https://ieeexplore.ieee.org/document/9530566), and the original can be downloaded [here](https://github.com/DfX-NYUAD/GNN-RE?tab=readme-ov-file#Citation-&-Acknowledgement).
+
 ### `cell.txt` Format
 
 The `cell.txt` file provides metadata mapping each node index to its corresponding circuit cell instance and source file. This is useful for:
