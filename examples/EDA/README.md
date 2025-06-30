@@ -16,7 +16,7 @@ To train on different subsets of the dataset, simply replace dfg with cdfg or re
 
 #### Input
 
-The input directory (e.g., Experiments/EDA/dfg/) must contain:
+The input directory (e.g., examples/EDA/dfg/) must contain:
 
 - node_features.csv: Numerical features for each node
 
