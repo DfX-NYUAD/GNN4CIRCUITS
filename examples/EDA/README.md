@@ -34,6 +34,5 @@ The training script will:
 - Save performance metrics and model checkpoints if specified in the script
 
 
-
-
-* The dataset provided under examples/EDA/ has been adapted from the original JSON-based graph format released by Wu et al. To make it compatible with the GNN4CIRCUITS pipeline, we parsed each JSON graph into a networkx object, extracted relevant node features (bitwidth, m_delay, etc.), and assigned multi-label classification targets based on FPGA resource usage (FF, LUT, DSP). We then converted these graphs into DGL format and exported them as three CSV files: node_features.csv, graph_edges.csv, and graph_properties.csv. This preprocessing ensures that the dataset can be directly used in the GNN4CIRCUITS training and evaluation pipeline for node-level classification tasks.
+---
+*The dataset provided under examples/EDA/ has been adapted from the original JSON-based graph format released by Wu et al. To make it compatible with the GNN4CIRCUITS pipeline, we parsed each JSON graph into a networkx object, extracted relevant node features (bitwidth, m_delay, etc.), and assigned multi-label classification targets based on FPGA resource usage (FF, LUT, DSP). We then converted these graphs into DGL format and exported them as three CSV files: node_features.csv, graph_edges.csv, and graph_properties.csv. This preprocessing ensures that the dataset can be directly used in the GNN4CIRCUITS training and evaluation pipeline for node-level classification tasks.
