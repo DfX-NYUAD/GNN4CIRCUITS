@@ -2,9 +2,9 @@
 
 This use-case reproduces the node-level classification experiments described in Section 5.2 of the [GNN4IC paper](https://arxiv.org/abs/2201.06848), focused on hardware reverse engineering.
 
-The training pipeline uses graph representations of gate-level netlists with anonymized node and module names. Each graph corresponds to an integrated circuit (IC) design, and the goal is to classify the type of gate or recover functional properties from the structure alone — a task relevant to reverse engineering and de-obfuscation.
+The training pipeline uses graph representations of gate-level netlists. Each graph corresponds to an integrated circuit (IC) design, and the goal is to classify the type of gate or recover functional properties from the structure — a task relevant to reverse engineering.
 
-The dataset used in this experiment is adapted from [Alrahis et al. (2021)](https://ieeexplore.ieee.org/document/9530566), originally released as part of the [GNN-RE project](https://github.com/DfX-NYUAD/GNN-RE). The version in this repository under `examples/security/` has been preprocessed to fit the input requirements of GNN4CIRCUITS.
+The dataset used in this experiment is adapted from [Alrahis et al. (2021)](https://ieeexplore.ieee.org/document/9530566), originally released as part of the [GNN-RE project](https://github.com/DfX-NYUAD/GNN-RE). The version in this repository under `examples/security/` has been preprocessed using the GNN4CIRCUITS parser - the steps can be found under `examples/matrix_format/` .
 
 #### Example:
 
