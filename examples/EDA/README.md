@@ -9,7 +9,7 @@ The dataset used in this experiment is adapted* from [Wu et al.](https://github.
 #### Example:
 
 ```bash
-python GNN4CIRCUITS.py train -class node -hdim 300 -n_layers 5 -input examples/EDA/dfg
+python GNN4CIRCUITS.py train -class node -task classification -hdim 300 -n_layers 5 -input examples/EDA/dfg
 ```
 
 To train on different subsets of the dataset, simply replace dfg with cdfg or realcase.
