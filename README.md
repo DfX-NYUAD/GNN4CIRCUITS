@@ -1,6 +1,6 @@
 # GNN4CIRCUITS
 
-GNN4CIRCUITS is a platform for applying Graph Neural Networks (GNNs) to circuit analysis and design. This repository supports graph conversion from hardware description files and the training of GNN models for both **node-level** and **graph-level** classification.
+GNN4CIRCUITS is a platform for applying Graph Neural Networks (GNNs) to circuit analysis and design. This repository supports graph conversion from hardware description files and the training of GNN models for both **node-level** and **graph-level** tasks including both **classification** and **regression**.
 
 ## Table of Contents
 
@@ -17,6 +17,7 @@ Modern ICs can be represented as graphs, with gates as nodes and wires as edges.
 
 - Circuit-to-graph conversion 
 - Node and graph-level machine learning tasks
+- Support for both classification and regression
 - Multiple GNN model support (GCN, GIN and PNA)
 - Compatibility with real-world and synthetic benchmarks
 
@@ -78,15 +79,21 @@ This generates a directory called `files4training` containing:
 Once graph files are generated, train a GNN model on the dataset:
 
 ```bash
-python GNN4CIRCUITS.py train -class graph -model <model> -hdim <hidden-dimension> -n_layers <number-of-layers> -epochs <number-of-epochs> -input <input-path>
+python GNN4CIRCUITS.py train -class graph -task <classification|regression> -model <model> -hdim <hidden-dimension> -n_layers <number-of-layers> -epochs <number-of-epochs> -input <input-path>
 ```
 
 Optional arguments can be used to provide validation or test sets separately using `-val` and `-test`.
 
-#### Example:
+#### Example (Graph Regression):
 
 ```bash
-python GNN4CIRCUITS.py train -class graph -model GIN -hdim 128 -n_layers 3 -epochs 200 -input files4training
+python GNN4CIRCUITS.py train -class graph -task regression -model GIN -hdim 128 -n_layers 3 -epochs 200 -input files4training
+```
+
+#### Example (Node Classification):
+
+```bash
+python GNN4CIRCUITS.py train -class node -task classification -model GCN -hdim 64 -n_layers 2 -epochs 300 -input files4training
 ```
 
 ## Command-Line Arguments
@@ -109,6 +116,8 @@ Used for netlist to graph conversion
 ### `train` Command
 Used for training and evaluation
 - `-class`: `graph` or `node`
+- `-task`: `classification` or `regression` 
+  Specifies whether the task is a classification (e.g., logic type) or a regression (e.g., resource usage).
 - `-model`: `GCN`, `GIN`, or `PNA`
 - `-hdim`: Hidden dimension size
 - `-n_layers`: Number of GNN layers
@@ -188,3 +197,4 @@ For example:
 
 **Notes:**
 - Node IDs should correspond to those used in `feat.txt`, `label.txt`, and the indices in `row.txt` / `col.txt`.
+
