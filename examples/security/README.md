@@ -9,7 +9,7 @@ The dataset used in this experiment is adapted from [Alrahis et al. (2021)](http
 #### Example:
 
 ```bash
-python GNN4CIRCUITS.py train -class node -hdim 256 -n_layers 5 -epochs 2000 -input examples/security
+python GNN4CIRCUITS.py train -class node -task classification -hdim 256 -n_layers 5 -epochs 2000 -input examples/security
 ```
 This command trains a GNN model on node-level reverse engineering tasks using the security dataset.
 
