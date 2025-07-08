@@ -1,10 +1,10 @@
 ## Reliability Training
 
-This use-case reproduces the path-level regression experiments from Section 5.2.2 of the GNN4CIRCUITS paper, inspired by the GNN4REL framework Alrahis et al. (2022). The goal is to estimate process-variation-induced timing degradation for critical paths in gate-level netlists.
+This use-case reproduces the path-level regression experiments from Section 5.2.2 of the GNN4CIRCUITS paper, inspired by the GNN4REL framework [Alrahis et al. (2022)](https://ieeexplore.ieee.org/document/9852805). The goal is to estimate process-variation-induced timing degradation for critical paths in gate-level netlists.
 
 Each graph in this experiment represents a 1-hop subgraph around a timing path in an integrated circuit (IC) netlist. The regression task predicts the degradation of the delay of each path — a critical aspect in designing reliable ICs under process variation.
 
-The dataset is derived from select EPFL benchmarks, where 1,000 worst-slack paths were extracted per design and augmented using Monte-Carlo simulations of process variation. The data has been preprocessed using the GNN4CIRCUITS pipeline and converted into a format suitable for graph regression.
+The dataset is derived from select EPFL benchmarks, where 1,000 worst-slack paths were extracted per design and augmented using Monte-Carlo simulations of process variation. The data, found [here](https://github.com/lilasrahis/GNN4REL), has been preprocessed using the GNN4CIRCUITS pipeline and converted into a format suitable for graph regression.
 
 #### Example:
 ```bash
