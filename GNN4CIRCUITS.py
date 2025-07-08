@@ -21,7 +21,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data.sampler import SubsetRandomSampler
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, mean_absolute_error
 from torch.nn import BatchNorm1d
 import time
 import argparse
@@ -965,7 +965,7 @@ class NodeClassificationDataset(DGLDataset):
         return self.degs, self.deg_counts
 
 
-class GCN(nn.Module):
+class FlexibleGCN(nn.Module):
     def __init__(self, in_feats, h_feats, num_classes, n_layers, mode="node"):
         """
         n_layers: total number of GraphConv layers.
@@ -974,7 +974,7 @@ class GCN(nn.Module):
                   intermediate layers (if any): h_feats -> h_feats,
                   final layer: h_feats -> num_classes.
         """
-        super(GCN, self).__init__()
+        super(FlexibleGCN, self).__init__()
         self.mode = mode  # 'graph' or 'node'
         self.layers = nn.ModuleList()
         if n_layers == 1:
@@ -1014,9 +1014,9 @@ class MLP(nn.Module):
         x = self.batch_norm2(self.linear2(x))
         return x
 
-class GIN(nn.Module):
+class FlexibleGIN(nn.Module):
     def __init__(self, in_feats, h_feats, num_classes, n_layers, mode="node"):
-        super(GIN, self).__init__()
+        super(FlexibleGIN, self).__init__()
         self.mode = mode  # 'graph' or 'node'
         self.layers = nn.ModuleList()
         if n_layers == 1:
@@ -1047,9 +1047,9 @@ class GIN(nn.Module):
             return h  # node-level logits
 
 
-class PNA(nn.Module):
+class FlexiblePNA(nn.Module):
     def __init__(self, in_dim, hidden_dim, n_classes, aggregators, scalers, delta, n_layers, mode="node"):
-        super(PNA, self).__init__()
+        super(FlexiblePNA, self).__init__()
         self.mode = mode  # "graph" or "node"
         self.layers = nn.ModuleList()
         if n_layers == 1:
@@ -1103,6 +1103,8 @@ def main():
     # args for training portion
     graph_parser = subparsers.add_parser('train', help='Graph operations')
     graph_parser.add_argument('-class', '--classification', type=str, required=True, choices=['graph', 'node'], help='Classification type: "graph" classification or "node" classification')
+    graph_parser.add_argument('-task', '--task_type', type=str, default='classification', choices=['classification', 'regression'],
+                          help='Task type: "classification" or "regression". Default: classification')
     graph_parser.add_argument('-model', type=str, default='GCN', help='Model type. Default: GCN')
     graph_parser.add_argument('-hdim', type=int, default=64, help='Hidden dimensions. Default: 64')
     graph_parser.add_argument('-n_layers', type=int, default=2, help='Number of layers for the GNN model. Default: 2')
@@ -1191,7 +1193,7 @@ def handle_parse(args):
     print("Successfully saved dataset in files4training/")
 
 
-def train_epoch(model, optimizer, dataloader, classification_type):
+def train_epoch(model, optimizer, dataloader, classification_type, task_type):
     model.train()
     total_loss = 0.0
     num_batches = 0
@@ -1200,28 +1202,44 @@ def train_epoch(model, optimizer, dataloader, classification_type):
 
     for batch in dataloader:
         optimizer.zero_grad()
+
         if classification_type == "graph":
             graphs, labels = batch
             graphs = graphs.to(device)
-            labels = labels.to(device)
             feats = graphs.ndata["attr"].float().to(device)
+            labels = labels.to(device)
             logits = model(graphs, feats)
-            loss = F.cross_entropy(logits, labels)
-            preds = logits.argmax(dim=1)
-            all_preds.extend(preds.tolist())
-            all_labels.extend(labels.tolist())
+
+            if task_type == "regression":
+                loss = F.mse_loss(logits.squeeze(), labels.float())
+                all_preds.extend(logits.squeeze().tolist())
+                all_labels.extend(labels.squeeze().tolist())
+            else:
+                loss = F.cross_entropy(logits, labels)
+                preds = logits.argmax(dim=1)
+                all_preds.extend(preds.tolist())
+                all_labels.extend(labels.tolist())
 
         elif classification_type == "node":
             g = batch.to(device)
             mask = g.ndata["train_mask"]
             if mask.sum().item() == 0:
                 continue
-            logits = model(g, g.ndata["feat"].float().to(device))
+
+            feats = g.ndata["feat"].float().to(device)
             labels = g.ndata["label"][mask].to(device)
-            preds = logits.argmax(dim=1)[mask]
-            loss = F.cross_entropy(logits[mask], labels)
-            all_preds.extend(preds.tolist())
-            all_labels.extend(labels.tolist())
+            logits = model(g, feats)
+            preds = logits[mask]
+
+            if task_type == "regression":
+                loss = F.mse_loss(preds, labels.float())
+                all_preds.extend(preds.squeeze().tolist())
+                all_labels.extend(labels.squeeze().tolist())
+            else:
+                loss = F.cross_entropy(preds, labels)
+                class_preds = preds.argmax(dim=1)
+                all_preds.extend(class_preds.tolist())
+                all_labels.extend(labels.tolist())
         else:
             raise ValueError("Unknown classification type")
 
@@ -1230,58 +1248,79 @@ def train_epoch(model, optimizer, dataloader, classification_type):
         total_loss += loss.item()
         num_batches += 1
 
-    if not all_preds:
-        return float('nan'), (0, 0, 0, 0, None)
+    avg_loss = total_loss / num_batches if num_batches > 0 else float('nan')
+    if task_type == "regression":
+        mae = mean_absolute_error(all_labels, all_preds)
+        return avg_loss, (mae, 0)
 
     acc = accuracy_score(all_labels, all_preds)
     f1 = f1_score(all_labels, all_preds, average='macro', zero_division=0)
-    avg_loss = total_loss / num_batches if num_batches > 0 else float('nan')
-
     return avg_loss, (acc, f1)
 
 
-def validate_epoch(model, dataloader, classification_type):
+def validate_epoch(model, dataloader, classification_type, task_type):
     model.eval()
-    all_preds = []
-    all_labels = []
     total_loss = 0.0
     num_batches = 0
+    all_preds = []
+    all_labels = []
+
     with torch.no_grad():
         for batch in dataloader:
             if classification_type == "graph":
                 graphs, labels = batch
                 graphs = graphs.to(device)
-                labels = labels.to(device)
                 feats = graphs.ndata["attr"].float().to(device)
+                labels = labels.to(device)
                 logits = model(graphs, feats)
-                loss = F.cross_entropy(logits, labels)
-                preds = logits.argmax(dim=1)
-                all_preds.extend(preds.tolist())
-                all_labels.extend(labels.tolist())
-                total_loss += loss.item()
-                num_batches += 1
+
+                if task_type == "regression":
+                    loss = F.mse_loss(logits.squeeze(), labels.float())
+                    all_preds.extend(logits.squeeze().tolist())
+                    all_labels.extend(labels.squeeze().tolist())
+                else:
+                    loss = F.cross_entropy(logits, labels)
+                    preds = logits.argmax(dim=1)
+                    all_preds.extend(preds.tolist())
+                    all_labels.extend(labels.tolist())
+
             elif classification_type == "node":
                 g = batch.to(device)
                 mask = g.ndata["val_mask"]
                 if mask.sum().item() == 0:
-                    continue          
-                logits = model(g, g.ndata["feat"].float().to(device))
+                    continue
+
+                feats = g.ndata["feat"].float().to(device)
                 labels = g.ndata["label"][mask].to(device)
-                loss = F.cross_entropy(logits[mask], g.ndata["label"][mask])
-                preds = logits.argmax(dim=1)[mask]
-                all_preds.extend(preds.tolist())
-                all_labels.extend(labels.tolist())
-                total_loss += loss.item()
-                num_batches += 1
-    if not all_preds:
-        return float('nan'), (0, 0, 0, None)
+                logits = model(g, feats)
+                preds = logits[mask]
 
-    accuracy = accuracy_score(all_labels, all_preds)
-    f1 = f1_score(all_labels, all_preds, average='macro', zero_division=0)
+                if task_type == "regression":
+                    loss = F.mse_loss(preds, labels.float())
+                    all_preds.extend(preds.squeeze().tolist())
+                    all_labels.extend(labels.squeeze().tolist())
+                else:
+                    loss = F.cross_entropy(preds, labels)
+                    class_preds = preds.argmax(dim=1)
+                    all_preds.extend(class_preds.tolist())
+                    all_labels.extend(labels.tolist())
+            else:
+                raise ValueError("Unknown classification type")
+
+            total_loss += loss.item()
+            num_batches += 1
+
     avg_loss = total_loss / num_batches if num_batches > 0 else float('nan')
-    return avg_loss, (accuracy, f1)
+    if task_type == "regression":
+        mae = mean_absolute_error(all_labels, all_preds)
+        return avg_loss, (mae, 0)
 
-def test_epoch(model, dataloader, classification_type):
+    acc = accuracy_score(all_labels, all_preds)
+    f1 = f1_score(all_labels, all_preds, average='macro', zero_division=0)
+    return avg_loss, (acc, f1)
+
+
+def test_epoch(model, dataloader, classification_type, task_type):
     model.eval()
     all_preds = []
     all_labels = []
@@ -1291,25 +1330,41 @@ def test_epoch(model, dataloader, classification_type):
             if classification_type == "graph":
                 graphs, labels = batch
                 graphs = graphs.to(device)
-                labels = labels.to(device)
                 feats = graphs.ndata["attr"].float().to(device)
+                labels = labels.to(device)
                 logits = model(graphs, feats)
-                preds = logits.argmax(dim=1)
-                all_preds.extend(preds.tolist())
-                all_labels.extend(labels.tolist())
+
+                if task_type == "regression":
+                    preds = logits.squeeze()
+                    all_preds.extend(preds.tolist())
+                    all_labels.extend(labels.squeeze().tolist())
+                else:
+                    preds = logits.argmax(dim=1)
+                    all_preds.extend(preds.tolist())
+                    all_labels.extend(labels.tolist())
+
             elif classification_type == "node":
                 g = batch.to(device)
                 mask = g.ndata["test_mask"]
                 if mask.sum().item() == 0:
                     continue
-                logits = model(g, g.ndata["feat"].float().to(device))
-                labels = g.ndata["label"][mask].to(device)
-                preds = logits.argmax(dim=1)[mask]
-                all_preds.extend(preds.tolist())
-                all_labels.extend(labels.tolist())
 
-    if not all_preds:
-        return 0, 0, 0, 0, None
+                feats = g.ndata["feat"].float().to(device)
+                labels = g.ndata["label"][mask].to(device)
+                logits = model(g, feats)
+                preds = logits[mask]
+
+                if task_type == "regression":
+                    all_preds.extend(preds.squeeze().tolist())
+                    all_labels.extend(labels.squeeze().tolist())
+                else:
+                    class_preds = preds.argmax(dim=1)
+                    all_preds.extend(class_preds.tolist())
+                    all_labels.extend(labels.tolist())
+
+    if task_type == "regression":
+        mae = mean_absolute_error(all_labels, all_preds)
+        return 0, 0, 0, mae, None
 
     acc = accuracy_score(all_labels, all_preds)
     prec = precision_score(all_labels, all_preds, average='macro', zero_division=0)
@@ -1320,6 +1375,7 @@ def test_epoch(model, dataloader, classification_type):
 
 def handle_training(args):
     classification_type = args.classification  # "graph" or "node"
+    task_type = args.task_type  # "classification" or "regression"
 
     print("Loading dataset...")
 
@@ -1331,25 +1387,27 @@ def handle_training(args):
         )
         train_dataset.process()
         val_dataset = train_dataset  
-        train_dataloader = GraphDataLoader(train_dataset, batch_size=args.batch, shuffle=True)
-        val_dataloader = GraphDataLoader(val_dataset, batch_size=args.batch, shuffle=False)
+        train_dataloader = GraphDataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
+        val_dataloader = GraphDataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
+        test_dataloader = val_dataloader  # for simplicity
+
+        output_dim = 1 if task_type == "regression" else train_dataset.gclasses
 
         if args.model == "GCN":
-            model = GCN(train_dataset.dim_nfeats, args.hdim, train_dataset.gclasses,
+            model = FlexibleGCN(train_dataset.dim_nfeats, args.hdim, output_dim,
                                 args.n_layers, mode="graph")
         elif args.model == "GIN":
-            model = GIN(train_dataset.dim_nfeats, args.hdim, train_dataset.gclasses,
+            model = FlexibleGIN(train_dataset.dim_nfeats, args.hdim, output_dim,
                                 args.n_layers, mode="graph")
         elif args.model == "PNA":
             degs, _ = train_dataset.calculate_degs()
             delta = degs.float().log().mean().item()
             aggregators = ['mean', 'max', 'min', 'std']
             scalers = ['identity', 'amplification', 'attenuation']
-            model = PNA(train_dataset.dim_nfeats, args.hdim, train_dataset.gclasses,
+            model = FlexiblePNA(train_dataset.dim_nfeats, args.hdim, output_dim,
                                 aggregators, scalers, delta, args.n_layers, mode="graph")
         else:
             raise ValueError(f"Unsupported model type: {args.model}")
-
 
     elif classification_type == "node":
         dataset = NodeClassificationDataset(
@@ -1358,28 +1416,26 @@ def handle_training(args):
             properties_file=args.input +"/graph_properties.csv"
         )
         dataset.process()
-        train_dataset = dataset
-        val_dataset = dataset
-        test_dataset = dataset
+        train_dataset = val_dataset = test_dataset = dataset
 
-        train_dataloader = GraphDataLoader(train_dataset, batch_size=args.batch, shuffle=True)
-        val_dataloader = GraphDataLoader(val_dataset, batch_size=args.batch, shuffle=False)
-        test_dataloader = GraphDataLoader(test_dataset, batch_size=args.batch, shuffle=False)
+        train_dataloader = GraphDataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
+        val_dataloader = GraphDataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
+        test_dataloader = GraphDataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
         print("Done loading dataloaders.")
 
         in_feats = dataset.dim_nfeats
-        num_classes = dataset.n_classes
+        output_dim = 1 if task_type == "regression" else dataset.n_classes
 
         if args.model == "GCN":
-            model = MultiLabelGCN(in_feats, args.hdim, num_classes, args.n_layers, 0.3)
+            model = FlexibleGCN(in_feats, args.hdim, output_dim, args.n_layers, mode="node")
         elif args.model == "GIN":
-            model = MultiLabelGIN(in_feats, args.hdim, num_classes, args.n_layers, 0.3)
+            model = FlexibleGIN(in_feats, args.hdim, output_dim, args.n_layers, mode="node")
         elif args.model == "PNA":
             degs, _ = train_dataset.calculate_degs()
             delta = degs.float().log().mean().item()
             aggregators = ['mean', 'max', 'min', 'std']
             scalers = ['identity', 'amplification', 'attenuation']
-            model = MultiLabelPNA(in_feats, args.hdim, num_classes, aggregators, scalers, delta, args.n_layers, 0.3, "node")
+            model = FlexiblePNA(in_feats, args.hdim, output_dim, aggregators, scalers, delta, args.n_layers, mode="node")
         else:
             raise ValueError(f"Unsupported model type: {args.model}")
 
@@ -1387,44 +1443,51 @@ def handle_training(args):
         raise ValueError("Classification type must be either 'graph' or 'node'.")
 
     model = model.to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
-    lr = args.lr
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    best_val_f1 = -1
+    best_val_metric = float('inf') if task_type == "regression" else -1
     best_epoch = -1
     num_epochs = args.epochs
-    test_acc = test_prec = test_recall = test_f1 = test_cm = None
+
+    test_metric_1 = test_metric_2 = test_metric_3 = test_metric_4 = test_cm = None
 
     start_time = time.time()
 
     for epoch in range(num_epochs):
-        train_loss, (train_acc, train_f1) = train_epoch(model, optimizer, train_dataloader, classification_type)
-        print(f"[Train Epoch {epoch+1}] Loss: {train_loss:.4f} | Acc: {train_acc:.4f} | F1: {train_f1:.4f}")
+        train_loss, (train_metric_1, _) = train_epoch(model, optimizer, train_dataloader, classification_type, task_type)
+        val_loss, (val_metric_1, _) = validate_epoch(model, val_dataloader, classification_type, task_type)
 
-        val_loss, (val_acc, val_f1) = validate_epoch(
-            model, val_dataloader, classification_type)
-        print(f"[Val   Epoch {epoch+1}] Loss: {val_loss:.4f} | Acc: {val_acc:.4f} | F1: {val_f1:.4f}")
-        if val_f1 >= best_val_f1:
-            best_val_f1 = val_f1
+        if task_type == "regression":
+            print(f"[Train Epoch {epoch+1}] Loss: {train_loss:.4f} | MAE: {train_metric_1:.4f}")
+            print(f"[Val   Epoch {epoch+1}] Loss: {val_loss:.4f} | MAE: {val_metric_1:.4f}")
+            improved = val_metric_1 < best_val_metric
+        else:
+            print(f"[Train Epoch {epoch+1}] Loss: {train_loss:.4f} | Acc: {train_metric_1:.4f}")
+            print(f"[Val   Epoch {epoch+1}] Loss: {val_loss:.4f} | Acc: {val_metric_1:.4f}")
+            improved = val_metric_1 >= best_val_metric
+
+        if improved:
+            best_val_metric = val_metric_1
             best_epoch = epoch
-            test_acc, test_prec, test_recall, test_f1, test_cm = test_epoch(model, test_dataloader, classification_type)
-            print(f"\n[TEST RESULTS] Acc: {test_acc:.4f} | Prec: {test_prec:.4f} | Recall: {test_recall:.4f} | F1: {test_f1:.4f}")
+            test_metric_1, test_metric_2, test_metric_3, test_metric_4, test_cm = test_epoch(model, test_dataloader, classification_type, task_type)
 
+            if task_type == "regression":
+                print(f"\n[TEST RESULTS] MAE: {test_metric_4:.4f}")
+            else:
+                print(f"\n[TEST RESULTS] Acc: {test_metric_1:.4f} | Prec: {test_metric_2:.4f} | Recall: {test_metric_3:.4f} | F1: {test_metric_4:.4f}")
 
-    end_time = time.time()
-    elapsed = end_time - start_time
+    elapsed = time.time() - start_time
     print(f"\nTotal elapsed time: {elapsed:.2f} seconds")
 
-    # Logging
     with open(args.output, "a") as output_file:
         output_file.write(f"\n\nModel: {args.model}\n")
-        # output_file.write(f"h_dim: {args.hdim}\n")
-        # output_file.write(f"epochs: {args.epochs}\n")
-        # output_file.write(f"num layers: {args.n_layers}\n")
-        # output_file.write(f"best epoch: {best_epoch}\n")
-        output_file.write(f"Test Accuracy: {test_acc:.4f}, Precision: {test_prec:.4f}, Recall: {test_recall:.4f}, F1: {test_f1:.4f}\n")
-        output_file.write("Confusion Matrix:\n" + str(test_cm) + "\n")
+        if task_type == "regression":
+            output_file.write(f"Test MAE: {test_metric_4:.4f}\n")
+        else:
+            output_file.write(f"Test Accuracy: {test_metric_1:.4f}, Precision: {test_metric_2:.4f}, Recall: {test_metric_3:.4f}, F1: {test_metric_4:.4f}\n")
+            output_file.write("Confusion Matrix:\n" + str(test_cm) + "\n")
         output_file.write(f"Elapsed Time: {elapsed:.2f} seconds\n")
     
+
 if __name__ == "__main__":
     main()
