@@ -8,7 +8,7 @@ The dataset is derived from select EPFL benchmarks, where 1,000 worst-slack path
 
 #### Example:
 ```bash
-python GNN4CIRCUITS.py train -class node -task_type regression -hdim 64 -n_layers 4 -epochs 500 -lr 0.001 -batch_size 32 -input examples/reliability/adder_files4training
+python GNN4CIRCUITS.py train -class node -task regression -hdim 64 -n_layers 4 -epochs 500 -lr 0.001 -batch_size 32 -input examples/reliability/adder_files4training
 ```
 This command trains a GNN regression model (GCN, GIN, or PNA) on the extracted subgraphs for path-level degradation prediction.
 
